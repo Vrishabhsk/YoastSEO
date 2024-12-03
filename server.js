@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { Paper, ContentAssessor, SeoAssessor } = require('yoastseo');
-const { AbstractResearcher } = require('yoastseo/build/languageProcessing');
+const Researcher = require('yoastseo/build/languageProcessing/languages/en/Researcher').default;
+const getFleschReadingScore = require('yoastseo/build/languageProcessing/researches/getFleschReadingScore').default;
 const readingTime = require('yoastseo/build/languageProcessing/researches/readingTime').default;
 
 // Config.
@@ -18,7 +19,7 @@ app.post('/yoast-analysis', (req, res) => {
     locale: 'en_US',
   });
 
-  const researcher = new AbstractResearcher(paper);
+  const researcher = new Researcher(paper);
 
   const content = new ContentAssessor(researcher);
   content.assess(paper);
@@ -30,6 +31,7 @@ app.post('/yoast-analysis', (req, res) => {
 
   const wordCount = researcher.getResearch('wordCountInText').count;
   const time = readingTime(paper, researcher);
+  const fleschReadingScore = getFleschReadingScore(paper, researcher);
 
   res.send({
     data: {
@@ -37,6 +39,7 @@ app.post('/yoast-analysis', (req, res) => {
       readability: contentResults,
       wordCount,
       readingTime: time,
+      fleschReadingScore: fleschReadingScore,
     },
   });
 });
