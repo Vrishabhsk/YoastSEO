@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { Paper, ContentAssessor, SeoAssessor } = require('yoastseo');
+const InclusiveLanguageAssessor = require('yoastseo/build/scoring/inclusiveLanguageAssessor').default;
 const Researcher = require('yoastseo/build/languageProcessing/languages/en/Researcher').default;
 const getFleschReadingScore = require('yoastseo/build/languageProcessing/researches/getFleschReadingScore').default;
 const readingTime = require('yoastseo/build/languageProcessing/researches/readingTime').default;
@@ -29,9 +30,15 @@ app.post('/yoast-analysis', (req, res) => {
   seo.assess(paper);
   const seoResults = seo.getValidResults();
 
+  const inclusiveLanguage = new InclusiveLanguageAssessor(researcher);
+  inclusiveLanguage.assess(paper);
+  const inclusiveLanguageResults = inclusiveLanguage.getValidResults();
+  const inclusiveLanguageScore = inclusiveLanguage.calculateOverallScore();
+
   const wordCount = researcher.getResearch('wordCountInText').count;
   const time = readingTime(paper, researcher);
   const fleschReadingScore = getFleschReadingScore(paper, researcher);
+  const words = researcher.getResearch('getProminentWordsForInsights');
 
   res.send({
     data: {
@@ -40,6 +47,11 @@ app.post('/yoast-analysis', (req, res) => {
       wordCount,
       readingTime: time,
       fleschReadingScore: fleschReadingScore,
+      prominentWords: words,
+      inclusiveLanguage: {
+        score: inclusiveLanguageScore,
+        results: inclusiveLanguageResults,
+      },
     },
   });
 });
