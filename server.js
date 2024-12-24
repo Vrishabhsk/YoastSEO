@@ -1,10 +1,15 @@
 const express = require('express');
 const cors = require('cors');
-const { Paper, ContentAssessor, SeoAssessor } = require('yoastseo');
+const { Paper, ContentAssessor, SeoAssessor, AssessmentResult } = require('yoastseo');
 const InclusiveLanguageAssessor = require('yoastseo/build/scoring/inclusiveLanguageAssessor').default;
+const CornerStoneContentAssessor = require('yoastseo/build/scoring/cornerstone/contentAssessor').default;
+const CornerStoneSeoAssessor = require('yoastseo/build/scoring/cornerstone/seoAssessor').default;
 const Researcher = require('yoastseo/build/languageProcessing/languages/en/Researcher').default;
 const getFleschReadingScore = require('yoastseo/build/languageProcessing/researches/getFleschReadingScore').default;
 const readingTime = require('yoastseo/build/languageProcessing/researches/readingTime').default;
+const ReadabilityScoreAggregator =
+  require('yoastseo/build/scoring/scoreAggregators/ReadabilityScoreAggregator').default;
+const SEOScoreAggregator = require('yoastseo/build/scoring/scoreAggregators/SEOScoreAggregator').default;
 
 // Config.
 const app = express();
@@ -15,9 +20,12 @@ const port = 3000;
 
 app.post('/yoast-analysis', (req, res) => {
   const paper = new Paper(req.body.content, {
-    title: req.body.title,
-    keyword: req.body.keyword ?? '',
+    title: 'Small Joys that fill Big Hearts',
+    keyword: req.body.keyword ?? 'Joys',
     locale: 'en_US',
+    permalink: 'https://yoast-seo.rt.gw/wp-admin',
+    description:
+      'Life is full of small joys that often go unnoticed. The sun rises each day, painting the sky in soft shades of pink and orange',
   });
 
   const researcher = new Researcher(paper);
@@ -29,6 +37,14 @@ app.post('/yoast-analysis', (req, res) => {
   const seo = new SeoAssessor(researcher);
   seo.assess(paper);
   const seoResults = seo.getValidResults();
+
+  const cornerstoneContent = new CornerStoneContentAssessor(researcher);
+  cornerstoneContent.assess(paper);
+  const cornerstoneContentResults = cornerstoneContent.getValidResults();
+
+  const cornerstoneSeo = new CornerStoneSeoAssessor(researcher);
+  cornerstoneSeo.assess(paper);
+  const cornerstoneSeoResults = cornerstoneSeo.getValidResults();
 
   const inclusiveLanguage = new InclusiveLanguageAssessor(researcher);
   inclusiveLanguage.assess(paper);
@@ -42,6 +58,8 @@ app.post('/yoast-analysis', (req, res) => {
 
   res.send({
     data: {
+      cornerstoneContent: cornerstoneContentResults,
+      cornerstoneSeo: cornerstoneSeoResults,
       seo: seoResults,
       readability: contentResults,
       wordCount,
@@ -52,6 +70,10 @@ app.post('/yoast-analysis', (req, res) => {
         score: inclusiveLanguageScore,
         results: inclusiveLanguageResults,
       },
+      cornerstoneContentResult: new ReadabilityScoreAggregator().aggregate(cornerstoneContentResults),
+      readabilityResult: new ReadabilityScoreAggregator().aggregate(contentResults),
+      seoResult: new SEOScoreAggregator().aggregate(seoResults),
+      cornerstoneSeoResult: new SEOScoreAggregator().aggregate(cornerstoneSeoResults),
     },
   });
 });
